@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   PaperAirplaneIcon, 
   UserIcon, 
-  CpuChipIcon,
+  BeakerIcon,
   ClipboardDocumentIcon,
   TrashIcon,
-  LightBulbIcon
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const Chat = () => {
@@ -13,7 +13,7 @@ const Chat = () => {
     {
       id: 1,
       role: 'assistant',
-      content: 'Welcome to MedToXAi Assistant!\n\nI\'m here to help you with molecular toxicity analysis and drug safety questions.\n\nI can help with:\n• Chemical structure analysis\n• Toxicity predictions\n• Drug safety assessments\n• Molecular property explanations\n\nTry asking:\n• "Explain benzene toxicity"\n• "What makes a drug safe?"\n• "How do I read SMILES notation?"\n• "Compare aspirin and ibuprofen"\n\nWhat would you like to know?',
+      content: 'Welcome to the AI Scientific Assistant for Computational Chemistry.\n\nI provide professional, research-grade explanations for:\n\n• Individual ADMET property predictions (Absorption, Distribution, Metabolism, Excretion, Toxicity)\n• Clinical toxicity risk interpretation\n• Pharmacokinetic property analysis\n• Structure-property relationships\n• Each property is predicted by an independently trained GIN model\n\nNote: ADMET is not a single model—each property has its own dedicated predictor.\n\nHow may I assist you today?',
       timestamp: new Date()
     }
   ]);
@@ -29,15 +29,13 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const predefinedQuestions = [
-    "What is benzene toxicity?",
-    "How are drugs tested for safety?",
-    "What makes a drug safe?",
-    "Explain liver toxicity",
-    "How to read chemical structures?",
-    "Compare aspirin and ibuprofen",
-    "What is molecular analysis?",
-    "How do drugs interact?"
+  const exampleQuestions = [
+    "What does high BBB penetration mean for CNS drugs?",
+    "Explain Caco-2 permeability and oral absorption",
+    "What is HLM intrinsic clearance and why does it matter?",
+    "How should I interpret clinical toxicity predictions?",
+    "What's the difference between intrinsic clearance and HLM clearance?",
+    "Why are ADMET properties predicted separately?"
   ];
 
   const handleSendMessage = async () => {
@@ -62,7 +60,7 @@ const Chat = () => {
         },
         body: JSON.stringify({
           message: userMessage.content,
-          context: 'chemistry_toxicology'
+          context: 'scientific_admet'
         })
       });
 
@@ -71,19 +69,19 @@ const Chat = () => {
         const assistantMessage = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: cleanResponse(data.response || 'I apologize, but I encountered an issue processing your request. Please try again.'),
+          content: data.response || 'I apologize, but I encountered an issue processing your request. Please try again.',
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
       } else {
-        throw new Error('Failed to get response from chat API');
+        throw new Error('Failed to get response from AI assistant');
       }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content: 'I\'m currently having trouble connecting to the chat service. Please check that the backend server is running and try again.',
+        content: 'I am currently unable to connect to the AI service. Please ensure the backend server is running and try again.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -93,7 +91,7 @@ const Chat = () => {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftModifier) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -104,7 +102,7 @@ const Chat = () => {
       {
         id: 1,
         role: 'assistant',
-        content: 'Chat Cleared!\n\nI am ready to help you with chemistry, toxicology, and pharmaceutical sciences.\n\nPopular topics:\n• Chemical structure analysis\n• Toxicity endpoint interpretation\n• Drug safety assessment\n• SMILES notation guidance\n• Molecular property prediction\n\nWhat would you like to explore?',
+        content: 'Chat cleared. How can I assist you with your ADMET analysis today?',
         timestamp: new Date()
       }
     ]);
@@ -114,158 +112,156 @@ const Chat = () => {
     navigator.clipboard.writeText(text);
   };
 
-  const cleanResponse = (text) => {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
-      .replace(/\*(.*?)\*/g, '$1')     // Remove italic markdown
-      .replace(/#+\s/g, '')           // Remove header symbols
-      .replace(/```[\s\S]*?```/g, '')  // Remove code blocks
-      .replace(/`([^`]+)`/g, '$1')    // Remove inline code
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links, keep text
-      .trim();
-  };
-
-  const handlePredefinedQuestion = (question) => {
+  const handleExampleQuestion = (question) => {
     setInputMessage(question);
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col p-4">
-      <div className="flex-1 flex flex-col max-w-6xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden w-full">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white p-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-full">
-                <CpuChipIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">MedToXAi Assistant</h1>
-                <p className="text-blue-100 text-sm">Specialized Chemistry & Toxicology AI</p>
-              </div>
-            </div>
-            <button
-              onClick={clearChat}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors duration-200"
-              title="Clear Chat"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
+    <div className="h-[calc(100vh-8rem)] flex flex-col">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-gray-900 to-black border-b border-primary-500/20 px-6 py-4 flex items-center justify-between rounded-t-xl shadow-lg">
+        <div className="flex items-center space-x-3">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary-500 to-accent-600 flex items-center justify-center shadow-lg shadow-primary-500/50">
+            <SparklesIcon className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">AI Research Assistant</h1>
+            <p className="text-sm text-gray-400">Scientific explanations and model interpretation</p>
           </div>
         </div>
+        <button
+          onClick={clearChat}
+          className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+          title="Clear conversation"
+        >
+          <TrashIcon className="h-5 w-5" />
+        </button>
+      </div>
 
-        {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 min-h-0 max-h-full">
-          {messages.map((message) => (
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto bg-black p-6 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
             <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`flex items-start space-x-3 max-w-[80%] ${
+              className={`flex items-start space-x-3 max-w-3xl ${
                 message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-              }`}>
-                <div className={`p-2 rounded-full flex-shrink-0 ${
-                  message.role === 'user' 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-purple-100 text-purple-600'
-                }`}>
-                  {message.role === 'user' ? (
-                    <UserIcon className="h-4 w-4" />
-                  ) : (
-                    <CpuChipIcon className="h-4 w-4" />
+              }`}
+            >
+              <div
+                className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  message.role === 'user'
+                    ? 'bg-gradient-to-br from-primary-500 to-accent-600 shadow-lg shadow-primary-500/50'
+                    : 'bg-gradient-to-br from-gray-800 to-gray-700'
+                }`}
+              >
+                {message.role === 'user' ? (
+                  <UserIcon className="h-5 w-5 text-white" />
+                ) : (
+                  <BeakerIcon className="h-5 w-5 text-primary-400" />
+                )}
+              </div>
+              
+              <div
+                className={`rounded-lg px-4 py-3 ${
+                  message.role === 'user'
+                    ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white shadow-lg shadow-primary-500/30'
+                    : 'bg-gradient-to-br from-gray-900 to-gray-800 text-gray-200 border border-primary-500/20'
+                }`}
+              >
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {message.content}
+                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <span
+                    className={`text-xs ${
+                      message.role === 'user' ? 'text-primary-100' : 'text-gray-500'
+                    }`}
+                  >
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                  {message.role === 'assistant' && (
+                    <button
+                      onClick={() => copyToClipboard(message.content)}
+                      className="ml-2 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                    >
+                      <ClipboardDocumentIcon className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
-                <div className={`p-4 rounded-2xl ${
-                  message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white border border-gray-200'
-                }`}>
-                  <div className="flex items-start justify-between">
-                    <div className="text-sm whitespace-pre-wrap flex-1 leading-relaxed">
-                      {message.content}
-                    </div>
-                    {message.role === 'assistant' && (
-                      <button
-                        onClick={() => copyToClipboard(message.content)}
-                        className="ml-2 p-1 hover:bg-gray-100 rounded transition-colors duration-200 flex-shrink-0"
-                        title="Copy to clipboard"
-                      >
-                        <ClipboardDocumentIcon className="h-4 w-4 text-gray-500" />
-                      </button>
-                    )}
-                  </div>
-                  <div className={`text-xs mt-2 ${
-                    message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString()}
-                  </div>
-                </div>
               </div>
             </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="flex items-start space-x-3 max-w-[80%]">
-                <div className="p-2 rounded-full bg-purple-100 text-purple-600">
-                  <CpuChipIcon className="h-4 w-4" />
-                </div>
-                <div className="p-4 rounded-2xl bg-white border border-gray-200">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Predefined Questions */}
-        <div className="px-4 py-3 bg-white border-t border-gray-200 flex-shrink-0">
-          <div className="flex items-center space-x-2 mb-2">
-            <LightBulbIcon className="h-4 w-4 text-yellow-500" />
-            <span className="text-sm font-medium text-gray-700">Quick Questions:</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {predefinedQuestions.map((question, index) => (
+        ))}
+        
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="flex items-start space-x-3 max-w-3xl">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-gray-800 to-gray-700 flex items-center justify-center">
+                <BeakerIcon className="h-5 w-5 text-primary-400" />
+              </div>
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-primary-500/20 rounded-lg px-4 py-3">
+                <div className="flex space-x-2">
+                  <div className="h-2 w-2 bg-primary-500 rounded-full animate-bounce shadow-sm shadow-primary-500/50"></div>
+                  <div className="h-2 w-2 bg-primary-500 rounded-full animate-bounce shadow-sm shadow-primary-500/50" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="h-2 w-2 bg-primary-500 rounded-full animate-bounce shadow-sm shadow-primary-500/50" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Example Questions */}
+      {messages.length === 1 && (
+        <div className="bg-gradient-to-br from-gray-900 to-black border-t border-primary-500/20 px-6 py-4">
+          <p className="text-sm font-medium text-gray-400 mb-3">Example questions:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {exampleQuestions.map((question, index) => (
               <button
                 key={index}
-                onClick={() => handlePredefinedQuestion(question)}
-                className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-700 rounded-full transition-all duration-200 border hover:border-blue-200"
+                onClick={() => handleExampleQuestion(question)}
+                className="text-left px-3 py-2 text-sm bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 rounded-lg transition-all border border-gray-700 hover:border-primary-500/50"
               >
                 {question}
               </button>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Input Area */}
-        <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
-          <div className="flex space-x-3">
-            <div className="flex-1">
-              <textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me about chemistry, toxicology, drug discovery, SMILES notation, molecular analysis, safety assessments..."
-                className="w-full p-3 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                rows="2"
-                disabled={isLoading}
-              />
-            </div>
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className="px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-700 text-white rounded-xl hover:from-blue-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center space-x-2 min-w-[80px]"
-            >
-              <PaperAirplaneIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Send</span>
-            </button>
-          </div>
+      {/* Input Area */}
+      <div className="bg-gradient-to-br from-gray-900 to-black border-t border-primary-500/20 px-6 py-4 rounded-b-xl shadow-lg">
+        <div className="flex items-end space-x-3">
+          <textarea
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask about model predictions, ADMET properties, or drug discovery..."
+            className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-sm placeholder-gray-500"
+            rows="2"
+            disabled={isLoading}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!inputMessage.trim() || isLoading}
+            className="px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-lg hover:from-primary-500 hover:to-accent-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed transition-all flex items-center space-x-2 shadow-lg shadow-primary-500/30"
+          >
+            <PaperAirplaneIcon className="h-5 w-5" />
+            <span className="hidden sm:inline">Send</span>
+          </button>
         </div>
+        <p className="text-xs text-gray-500 mt-2">
+          This AI assistant provides scientific explanations based on drug discovery knowledge. 
+          Responses should be validated with experimental data.
+        </p>
       </div>
     </div>
   );

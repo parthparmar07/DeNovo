@@ -14,19 +14,25 @@ module.exports = {
       '2xl': '1536px',
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'Courier New', 'monospace'],
+      },
       colors: {
+        // Vibrant cyan/teal palette inspired by ChainFund
         primary: {
-          50: '#f0f4ff',
-          100: '#e0e9ff',
-          200: '#c7d6ff',
-          300: '#a5b8ff',
-          400: '#818dff',
-          500: '#6366f1',
-          600: '#5548e8',
-          700: '#4a3bd4',
-          800: '#3d32aa',
-          900: '#352e87',
+          50: '#ecfeff',
+          100: '#cffafe',
+          200: '#a5f3fc',
+          300: '#67e8f9',
+          400: '#22d3ee',
+          500: '#06b6d4',
+          600: '#0891b2',
+          700: '#0e7490',
+          800: '#155e75',
+          900: '#164e63',
         },
+        // Neutral grays
         gray: {
           50: '#f9fafb',
           100: '#f3f4f6',
@@ -38,7 +44,22 @@ module.exports = {
           700: '#374151',
           800: '#1f2937',
           900: '#111827',
+          950: '#0a0a0a',
         },
+        // Teal accent
+        accent: {
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
+        },
+        // Success states
         success: {
           50: '#f0fdf4',
           100: '#dcfce7',

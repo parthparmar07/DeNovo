@@ -1,95 +1,103 @@
 import React, { useState } from 'react';
 import {
   BeakerIcon,
-  DocumentTextIcon,
+  CubeIcon,
   PlayIcon,
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  EyeIcon,
-  ChartBarIcon,
   ArrowDownTrayIcon,
-  TrashIcon,
-  ClockIcon as HistoryIcon,
-  ChatBubbleLeftRightIcon,
-  SparklesIcon,
-  PhotoIcon
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
-import { MolecularSearch, usePredictionHistory, useExport } from '../components/EnhancedMolecularTools';
-import { useNotifications, usePredictionNotifications } from '../components/NotificationSystem';
-import AIChat from '../components/AIChat';
-import ImageAnalysis from '../components/ImageAnalysis';
 
 const EnhancedPredictions = () => {
   const [inputType, setInputType] = useState('smiles');
   const [inputValue, setInputValue] = useState('');
-  const [selectedMoleculeName, setSelectedMoleculeName] = useState('');
-  const [selectedEndpoints, setSelectedEndpoints] = useState(['NR-AR-LBD']);
+  const [selectedModels, setSelectedModels] = useState(['clintox']);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showMolecularSearch, setShowMolecularSearch] = useState(true);
-  const [showAIChat, setShowAIChat] = useState(false);
-  
-  // Enhanced hooks
-  const { history, addPrediction, clearHistory } = usePredictionHistory();
-  const { exportToCSV, exportToJSON } = useExport();
-  const { notifyPredictionStart, notifyPredictionSuccess, notifyPredictionError } = usePredictionNotifications();
 
-  const endpoints = [
+  const availableModels = [
     {
-      id: 'NR-AR-LBD',
-      name: 'Androgen Receptor LBD',
-      description: 'Androgen receptor ligand binding domain',
-      icon: '🔴',
-      color: 'danger',
-      auc: 0.839
+      id: 'tox21',
+      name: 'Tox21',
+      type: 'Toxicity Assessment',
+      description: 'Multi-target toxicity prediction across 12 biological pathways',
+      outputType: 'classification',
+      accuracy: '89.5%',
+      category: 'toxicity',
+      examples: 'Thalidomide, Warfarin, Aspirin'
     },
     {
-      id: 'NR-AhR',
-      name: 'Aryl Hydrocarbon Receptor',
-      description: 'Xenobiotic metabolism pathway',
-      icon: '🔬',
-      color: 'warning',
-      auc: 0.834
+      id: 'clintox',
+      name: 'Clinical Toxicity',
+      type: 'Toxicity Assessment',
+      description: 'FDA approval and clinical trial toxicity risk prediction',
+      outputType: 'classification',
+      accuracy: '94.2%',
+      category: 'toxicity',
+      examples: 'Ibuprofen, Acetaminophen, Diclofenac'
     },
     {
-      id: 'SR-MMP',
-      name: 'Mitochondrial Membrane Potential',
-      description: 'Mitochondrial toxicity assessment',
-      icon: '⚡',
-      color: 'info',
-      auc: 0.808
+      id: 'bbbp',
+      name: 'Blood-Brain Barrier Penetration',
+      type: 'ADMET Property (Distribution)',
+      description: 'BBB permeability for CNS targeting (critical for neurological drugs)',
+      outputType: 'classification',
+      accuracy: '91.8%',
+      category: 'admet',
+      examples: 'Caffeine, Morphine, Dopamine'
     },
     {
-      id: 'NR-ER-LBD',
-      name: 'Estrogen Receptor LBD',
-      description: 'Estrogen receptor ligand binding domain',
-      icon: '♀️',
-      color: 'primary',
-      auc: 0.776
+      id: 'caco2',
+      name: 'Caco-2 Permeability',
+      type: 'ADMET Property (Absorption)',
+      description: 'Intestinal absorption prediction via epithelial cell permeability',
+      outputType: 'regression',
+      accuracy: 'R²: 0.87',
+      category: 'admet',
+      examples: 'Metformin, Atenolol, Propranolol'
     },
     {
-      id: 'NR-AR',
-      name: 'Androgen Receptor',
-      description: 'Androgen receptor activity',
-      icon: '♂️',
-      color: 'success',
-      auc: 0.752
+      id: 'clearance',
+      name: 'Intrinsic Clearance',
+      type: 'ADMET Property (Metabolism)',
+      description: 'Enzyme-mediated clearance rate (affects dosing frequency and half-life)',
+      outputType: 'regression',
+      accuracy: 'R²: 0.83',
+      category: 'admet',
+      examples: 'Midazolam, Propofol, Lidocaine'
+    },
+    {
+      id: 'hlm_clint',
+      name: 'HLM Intrinsic Clearance',
+      type: 'ADMET Property (Metabolism)',
+      description: 'Human liver microsomal clearance (hepatic metabolism rate prediction)',
+      outputType: 'regression',
+      accuracy: 'R²: 0.85',
+      category: 'admet',
+      examples: 'Diazepam, Verapamil, Terfenadine'
     }
   ];
 
+  const handleModelToggle = (modelId) => {
+    setSelectedModels(prev => {
+      if (prev.includes(modelId)) {
+        return prev.filter(id => id !== modelId);
+      } else {
+        return [...prev, modelId];
+      }
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || selectedModels.length === 0) return;
 
     setIsLoading(true);
     setResults(null);
-    
-    // Notify prediction start
-    notifyPredictionStart(inputValue);
 
     try {
       const response = await fetch('http://localhost:5000/api/predict', {
@@ -99,7 +107,7 @@ const EnhancedPredictions = () => {
         },
         body: JSON.stringify({
           smiles: inputValue,
-          endpoints: selectedEndpoints
+          models: selectedModels
         }),
       });
 
@@ -114,523 +122,317 @@ const EnhancedPredictions = () => {
       }
 
       setResults(data);
-      
-      // Add to history
-      addPrediction({
-        molecule: data.molecule || selectedMoleculeName || inputValue,
-        smiles: inputValue,
-        overall_toxicity: data.overall_toxicity,
-        confidence: data.confidence,
-        toxic_endpoints: data.toxic_endpoints,
-        predictions: data.predictions
-      });
-
-      // Notify success
-      notifyPredictionSuccess(data);
 
     } catch (error) {
       console.error('Prediction error:', error);
-      notifyPredictionError(error);
       setResults({
         error: error.message,
-        molecule: inputValue
+        smiles: inputValue
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMoleculeSelect = (smiles, name = '') => {
-    setInputValue(smiles);
-    setSelectedMoleculeName(name);
-    setResults(null);
-  };
-
-  const handleHistoryRerun = (smiles) => {
-    setInputValue(smiles);
-    setResults(null);
-  };
-
-  const handleExportHistory = (format) => {
-    if (history.length === 0) return;
-    
-    if (format === 'csv') {
-      exportToCSV(history, `medtoxai_history_${new Date().toISOString().split('T')[0]}.csv`);
+  const getInterpretation = (model, prediction, probability) => {
+    if (model.outputType === 'classification') {
+      if (probability > 0.7) return { text: 'High Risk', color: 'red' };
+      if (probability > 0.4) return { text: 'Moderate Risk', color: 'yellow' };
+      return { text: 'Low Risk', color: 'green' };
     } else {
-      exportToJSON(history, `medtoxai_history_${new Date().toISOString().split('T')[0]}.json`);
+      // Regression models
+      if (prediction > 0.7) return { text: 'High', color: 'green' };
+      if (prediction > 0.3) return { text: 'Moderate', color: 'yellow' };
+      return { text: 'Low', color: 'red' };
     }
   };
 
-  const getRiskColor = (risk) => {
-    switch (risk?.toLowerCase()) {
-      case 'low':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+  const exportResults = (format) => {
+    if (!results) return;
+
+    if (format === 'csv') {
+      const csv = [
+        ['Model', 'Prediction', 'Probability/Value', 'Interpretation'],
+        ...Object.entries(results.predictions || {}).map(([modelId, pred]) => {
+          const model = availableModels.find(m => m.id === modelId);
+          const interp = getInterpretation(model, pred.prediction, pred.probability);
+          return [
+            model?.name || modelId,
+            pred.prediction,
+            pred.probability || pred.value || 'N/A',
+            interp.text
+          ];
+        })
+      ].map(row => row.join(',')).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'prediction_results.csv';
+      a.click();
+    } else if (format === 'json') {
+      const json = JSON.stringify(results, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'prediction_results.json';
+      a.click();
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-soft p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <BeakerIcon className="w-8 h-8 text-pink-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Enhanced Molecular Toxicity Prediction</h1>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-primary-500/20 p-6 shadow-lg shadow-primary-500/10">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mb-2">Multi-Property Prediction</h1>
+        <p className="text-gray-400">
+          Predict individual ADMET properties and toxicity using independently trained GIN models
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Input & Model Selection */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Input Section */}
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-primary-500/20 p-6 shadow-lg">
+            <h2 className="text-lg font-semibold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mb-4">Input Method</h2>
+            
+            <div className="flex space-x-2 mb-6">
+              <button
+                onClick={() => setInputType('smiles')}
+                className={clsx(
+                  'px-4 py-2 rounded-lg font-medium transition-all',
+                  inputType === 'smiles'
+                    ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white shadow-lg shadow-primary-500/30'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                )}
+              >
+                SMILES Input
+              </button>
+              <button
+                onClick={() => setInputType('batch')}
+                className={clsx(
+                  'px-4 py-2 rounded-lg font-medium transition-all',
+                  inputType === 'batch'
+                    ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white shadow-lg shadow-primary-500/30'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                )}
+              >
+                Batch Upload
+              </button>
             </div>
-            <p className="text-gray-600">
-              Predict toxicity endpoints using our comprehensive molecular database and AI models.
-            </p>
+
+            {inputType === 'smiles' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  SMILES String
+                </label>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Enter SMILES notation (e.g., CC(C)Cc1ccc(cc1)C(C)C(O)=O)"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono text-sm text-gray-200 placeholder-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Enter a valid SMILES string for molecular structure
+                </p>
+              </div>
+            )}
+
+            {inputType === 'batch' && (
+              <div className="border-2 border-dashed border-primary-500/30 rounded-lg p-8 text-center bg-gray-800/30 hover:border-primary-500/50 transition-all">
+                <BeakerIcon className="h-12 w-12 text-primary-400 mx-auto mb-3" />
+                <p className="text-gray-400 mb-2">Upload CSV file with SMILES column</p>
+                <button className="px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-lg hover:from-primary-500 hover:to-accent-500 shadow-lg shadow-primary-500/30 transition-all">
+                  Browse Files
+                </button>
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowAIChat(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200"
-            >
-              <ChatBubbleLeftRightIcon className="h-4 w-4" />
-              <span>AI Chat</span>
-            </button>
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-            >
-              <HistoryIcon className="h-4 w-4" />
-              <span>History ({history.length})</span>
-            </button>
-            {history.length > 0 && (
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleExportHistory('csv')}
-                  className="flex items-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200"
+
+          {/* Model Selection */}
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-primary-500/20 p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">Select Models</h2>
+              <span className="text-sm text-gray-400">
+                {selectedModels.length} selected
+              </span>
+            </div>
+            
+            <div className="space-y-3">
+              {availableModels.map((model) => (
+                <div
+                  key={model.id}
+                  onClick={() => handleModelToggle(model.id)}
+                  className={clsx(
+                    'p-4 rounded-lg border-2 cursor-pointer transition-all group',
+                    selectedModels.includes(model.id)
+                      ? 'border-primary-500 bg-gradient-to-br from-primary-500/20 to-accent-500/20 shadow-lg shadow-primary-500/20'
+                      : 'border-gray-700 bg-gray-800/30 hover:border-primary-500/50'
+                  )}
                 >
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                  <span>CSV</span>
-                </button>
-                <button
-                  onClick={() => handleExportHistory('json')}
-                  className="flex items-center space-x-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors duration-200"
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                  <span>JSON</span>
-                </button>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3 flex-1">
+                      <div className={clsx(
+                        'h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110',
+                        selectedModels.includes(model.id) 
+                          ? 'bg-gradient-to-br from-primary-500 to-accent-600 shadow-lg shadow-primary-500/50' 
+                          : 'bg-gradient-to-br from-primary-500/20 to-accent-500/20'
+                      )}>
+                        <CubeIcon className={clsx(
+                          'h-5 w-5',
+                          selectedModels.includes(model.id) ? 'text-white' : 'text-primary-400'
+                        )} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold text-gray-200">{model.name}</h3>
+                          <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded-md">
+                            {model.type}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-400 mt-1">{model.description}</p>
+                        <div className="flex items-center space-x-4 mt-2">
+                          <span className="text-xs text-primary-400 font-medium">
+                            {model.accuracy}
+                          </span>
+                        </div>
+                        {model.examples && (
+                          <div className="mt-2 text-xs text-gray-500">
+                            Examples: {model.examples}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={clsx(
+                      'h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0',
+                      selectedModels.includes(model.id)
+                        ? 'border-primary-500 bg-primary-500 shadow-sm shadow-primary-500/50'
+                        : 'border-gray-600'
+                    )}>
+                      {selectedModels.includes(model.id) && (
+                        <CheckCircleIcon className="h-4 w-4 text-white" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={!inputValue.trim() || selectedModels.length === 0 || isLoading}
+              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-600 text-white font-semibold rounded-lg hover:from-primary-500 hover:to-accent-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/30"
+            >
+              {isLoading ? (
+                <>
+                  <ClockIcon className="h-5 w-5 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <PlayIcon className="h-5 w-5" />
+                  <span>Run Prediction</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column - Results */}
+        <div className="lg:col-span-1">
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-primary-500/20 p-6 sticky top-6 shadow-lg">
+            <h2 className="text-lg font-semibold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mb-4">Prediction Results</h2>
+            
+            {!results && !isLoading && (
+              <div className="text-center py-12">
+                <ChartBarIcon className="h-16 w-16 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">
+                  Results will appear here after prediction
+                </p>
+              </div>
+            )}
+
+            {isLoading && (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-3 shadow-sm shadow-primary-500/50"></div>
+                <p className="text-gray-400">Running models...</p>
+              </div>
+            )}
+
+            {results && results.error && (
+              <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
+                <div className="flex items-start space-x-2">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-red-300">Prediction Error</h3>
+                    <p className="text-sm text-red-400 mt-1">{results.error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {results && results.predictions && (
+              <div className="space-y-4">
+                {/* Results Table */}
+                <div className="border border-gray-700 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-800/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Model</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {Object.entries(results.predictions).map(([modelId, pred]) => {
+                        const model = availableModels.find(m => m.id === modelId);
+                        const interpretation = getInterpretation(model, pred.prediction, pred.probability);
+                        
+                        return (
+                          <tr key={modelId} className="hover:bg-gray-800/30 transition-colors">
+                            <td className="px-3 py-3">
+                              <div className="font-medium text-gray-200">{model?.name}</div>
+                              <div className="text-xs text-gray-500">{model?.type}</div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className={clsx(
+                                'inline-flex px-2 py-1 text-xs font-medium rounded-md',
+                                interpretation.color === 'red' && 'bg-red-900/30 text-red-300 border border-red-500/30',
+                                interpretation.color === 'yellow' && 'bg-yellow-900/30 text-yellow-300 border border-yellow-500/30',
+                                interpretation.color === 'green' && 'bg-green-900/30 text-green-300 border border-green-500/30'
+                              )}>
+                                {interpretation.text}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {model?.outputType === 'classification' 
+                                  ? `Confidence: ${(pred.probability * 100).toFixed(1)}%`
+                                  : `Value: ${pred.prediction.toFixed(3)}`
+                                }
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-3 backdrop-blur-sm">
+                  <div className="flex items-start space-x-2">
+                    <InformationCircleIcon className="h-5 w-5 text-primary-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-gray-300">
+                      Predictions based on trained GIN models. Results should be validated experimentally.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Input Section */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Input Method Selection Tabs */}
-          <div className="bg-white rounded-xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Input Method</h2>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <button
-                onClick={() => setInputType('smiles')}
-                className={clsx(
-                  'p-4 rounded-lg border-2 transition-all duration-200 text-center',
-                  inputType === 'smiles'
-                    ? 'border-pink-500 bg-pink-50 text-pink-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                )}
-              >
-                <DocumentTextIcon className="w-6 h-6 mb-2 mx-auto" />
-                <div className="font-medium">SMILES Input</div>
-                <div className="text-xs opacity-70 mt-1">Enter molecular notation</div>
-              </button>
-              <button
-                onClick={() => setInputType('image')}
-                className={clsx(
-                  'p-4 rounded-lg border-2 transition-all duration-200 text-center',
-                  inputType === 'image'
-                    ? 'border-pink-500 bg-pink-50 text-pink-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                )}
-              >
-                <PhotoIcon className="w-6 h-6 mb-2 mx-auto" />
-                <div className="font-medium">Image Analysis</div>
-                <div className="text-xs opacity-70 mt-1">Upload image with OCR</div>
-              </button>
-              <button
-                onClick={() => setInputType('database')}
-                className={clsx(
-                  'p-4 rounded-lg border-2 transition-all duration-200 text-center',
-                  inputType === 'database'
-                    ? 'border-pink-500 bg-pink-50 text-pink-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                )}
-              >
-                <BeakerIcon className="w-6 h-6 mb-2 mx-auto" />
-                <div className="font-medium">Database Search</div>
-                <div className="text-xs opacity-70 mt-1">Browse 40+ molecules</div>
-              </button>
-            </div>
-          </div>
-
-          {/* Image Analysis Section */}
-          {inputType === 'image' && (
-            <ImageAnalysis />
-          )}
-
-          {/* Molecular Search Database */}
-          {inputType === 'database' && showMolecularSearch && (
-            <div className="bg-white rounded-xl shadow-soft p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Molecular Database Search</h2>
-                <button
-                  onClick={() => setShowMolecularSearch(false)}
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  Hide Search
-                </button>
-              </div>
-              <MolecularSearch 
-                onSelect={handleMoleculeSelect}
-                currentSmiles={inputValue}
-              />
-            </div>
-          )}
-
-          {/* SMILES Input & Visualization */}
-          {inputType === 'smiles' && (
-          <div className="bg-white rounded-xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">SMILES Input & Molecular Structure</h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Input Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">SMILES Input</label>
-                    {!showMolecularSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setShowMolecularSearch(true)}
-                        className="text-sm text-pink-600 hover:text-pink-700"
-                      >
-                        Show Database Search
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <textarea
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Enter SMILES notation (e.g., CCO for ethanol)..."
-                        className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none font-mono text-sm"
-                        required
-                      />
-                      {inputValue && (
-                        <div className="absolute top-2 right-2">
-                          <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded border text-xs">
-                            <EyeIcon className="h-3 w-3 text-gray-400" />
-                            <span className="text-gray-600">{inputValue.length} chars</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {selectedMoleculeName && (
-                      <div className="text-sm text-pink-600 bg-pink-50 px-3 py-2 rounded-lg">
-                        Selected: {selectedMoleculeName}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Quick Examples */}
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs text-gray-500">Quick examples:</span>
-                    {[
-                      { name: 'Ethanol', smiles: 'CCO' },
-                      { name: 'Aspirin', smiles: 'CC(=O)OC1=CC=CC=C1C(=O)O' },
-                      { name: 'Caffeine', smiles: 'CN1C=NC2=C1C(=O)N(C(=O)N2C)C' }
-                    ].map((example) => (
-                      <button
-                        key={example.smiles}
-                        type="button"
-                        onClick={() => handleMoleculeSelect(example.smiles, example.name)}
-                        className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors duration-200"
-                      >
-                        {example.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Additional Input Information */}
-                <div className="space-y-4">
-                  <label className="text-sm font-medium text-gray-700">Input Summary</label>
-                  {inputValue ? (
-                    <div className="w-full p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="text-center">
-                        <CheckCircleIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                        <p className="text-sm font-medium text-green-800">SMILES Ready for Analysis</p>
-                        <p className="text-xs text-green-600 mt-1 font-mono break-all">{inputValue}</p>
-                        <p className="text-xs text-green-600 mt-2">Length: {inputValue.length} characters</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full h-48 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <BeakerIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">Enter SMILES for toxicity analysis</p>
-                        <p className="text-xs text-gray-400 mt-1">Chemical structure will be processed automatically</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Endpoint Selection */}
-              <div className="space-y-4">
-                <label className="text-sm font-medium text-gray-700">Toxicity Endpoints</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {endpoints.map((endpoint) => (
-                    <label
-                      key={endpoint.id}
-                      className={clsx(
-                        'relative flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200',
-                        selectedEndpoints.includes(endpoint.id)
-                          ? 'border-pink-500 bg-pink-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedEndpoints.includes(endpoint.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedEndpoints([...selectedEndpoints, endpoint.id]);
-                          } else {
-                            setSelectedEndpoints(selectedEndpoints.filter(id => id !== endpoint.id));
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      <div className="flex items-center space-x-3 flex-1">
-                        <span className="text-lg">{endpoint.icon}</span>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{endpoint.name}</div>
-                          <div className="text-xs text-gray-500">ROC-AUC: {endpoint.auc}</div>
-                        </div>
-                      </div>
-                      {selectedEndpoints.includes(endpoint.id) && (
-                        <CheckCircleIcon className="h-5 w-5 text-pink-500" />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={!inputValue.trim() || selectedEndpoints.length === 0 || isLoading}
-                className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {isLoading ? (
-                  <>
-                    <ClockIcon className="w-5 h-5 animate-spin" />
-                    <span>Analyzing...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlayIcon className="w-5 h-5" />
-                    <span>Predict Toxicity</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-          )}
-
-          {/* Results Section */}
-          {inputType === 'smiles' && results && (
-            <div className="bg-white rounded-xl shadow-soft p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Prediction Results</h2>
-              
-              {results.error ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-2">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
-                    <span className="font-medium text-red-800">Prediction Failed</span>
-                  </div>
-                  <p className="text-red-700 mt-2">{results.error}</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Molecule Info */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-sm font-medium text-gray-700">Molecule</div>
-                    <div className="font-mono text-sm text-gray-900 mt-1 break-all">
-                      {results.molecule}
-                    </div>
-                  </div>
-
-                  {/* Overall Summary */}
-                  {results.overall_toxicity && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="text-sm font-medium text-blue-900 mb-2">Overall Assessment</div>
-                      <div className="text-lg font-bold text-blue-800">{results.overall_toxicity}</div>
-                      {results.toxic_endpoints && (
-                        <div className="text-sm text-blue-700 mt-1">
-                          Toxic endpoints: {results.toxic_endpoints}
-                        </div>
-                      )}
-                      {results.confidence && (
-                        <div className="text-sm text-blue-700">
-                          Recommendation: {results.confidence}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Endpoint Results */}
-                  {Object.entries(results.predictions || {}).map(([endpoint, data]) => {
-                    const endpointInfo = endpoints.find(e => e.id === endpoint);
-                    return (
-                      <div key={endpoint} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-lg">{endpointInfo?.icon || '🧪'}</span>
-                            <div>
-                              <span className="font-medium text-gray-900">{endpointInfo?.name || endpoint}</span>
-                              {endpointInfo?.auc && (
-                                <div className="text-xs text-gray-500">ROC-AUC: {endpointInfo.auc}</div>
-                              )}
-                            </div>
-                          </div>
-                          <span className={clsx(
-                            'px-3 py-1 rounded-full text-sm font-medium border',
-                            getRiskColor(data.risk)
-                          )}>
-                            {data.prediction || data.risk}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-gray-600">Probability:</span>
-                            <div className="font-semibold text-gray-900">
-                              {((data.probability || 0) * 100).toFixed(1)}%
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Confidence:</span>
-                            <div className="font-semibold text-gray-900">
-                              {data.confidence || 'N/A'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* AI Analysis */}
-                  {results.ai_analysis && (
-                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 mt-4">
-                      <div className="flex items-center space-x-2 mb-3">
-                        <SparklesIcon className="w-5 h-5 text-purple-600" />
-                        <h3 className="font-medium text-purple-900">AI Analysis</h3>
-                      </div>
-                      <p className="text-sm text-purple-800 leading-relaxed whitespace-pre-wrap">
-                        {results.ai_analysis}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="text-xs text-gray-500 mt-4">
-                    Generated on {results.timestamp || new Date().toLocaleString()}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Prediction History */}
-          {showHistory && (
-            <div className="bg-white rounded-xl shadow-soft p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Predictions</h3>
-                {history.length > 0 && (
-                  <button
-                    onClick={clearHistory}
-                    className="text-sm text-red-600 hover:text-red-700 flex items-center space-x-1"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    <span>Clear</span>
-                  </button>
-                )}
-              </div>
-              
-              {history.length === 0 ? (
-                <p className="text-sm text-gray-500">No predictions yet</p>
-              ) : (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {history.slice(0, 10).map((item) => (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            {item.molecule}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {item.overall_toxicity}
-                          </div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            {new Date(item.timestamp).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleHistoryRerun(item.smiles)}
-                          className="ml-2 p-1 text-pink-600 hover:text-pink-700"
-                        >
-                          <PlayIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Help Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <div className="flex items-start space-x-3">
-              <InformationCircleIcon className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-medium text-blue-900 mb-2">Enhanced Features</h3>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• 40+ molecule database search</li>
-                  <li>• Real-time molecular visualization</li>
-                  <li>• Prediction history tracking</li>
-                  <li>• Export results (CSV/JSON)</li>
-                  <li>• AI-powered suggestions</li>
-                </ul>
-                <button className="text-sm font-medium text-blue-600 hover:text-blue-500 mt-3">
-                  Learn more about features →
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Chat Modal */}
-      <AIChat isOpen={showAIChat} onClose={() => setShowAIChat(false)} />
     </div>
   );
 };

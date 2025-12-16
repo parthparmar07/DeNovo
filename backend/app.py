@@ -21,6 +21,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
 # Import caching system
 from utils.cache import PredictionCache, CachedPredictionWrapper, prediction_cache
 
+# Import ADMET rules interpreter
+from utils.admet_rules import interpret_admet_predictions, calculate_molecular_properties
+
 # Import MedToXAi feature
 try:
     from models.meditox_feature import MedToXAi, analyze_chemical, get_safety_report
@@ -30,7 +33,13 @@ except ImportError as e:
     MEDTOXAI_AVAILABLE = False
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"])
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # Global instances
 predictor = None
@@ -46,8 +55,8 @@ def initialize_services():
     
     # Initialize ML predictor with caching
     try:
-        from models.simple_predictor import SimpleDrugToxPredictor
-        predictor = SimpleDrugToxPredictor()
+        from models.gin_predictor import MultiModelPredictor
+        predictor = MultiModelPredictor()
         if predictor.is_loaded:
             # Wrap predictor with caching
             predictor_cached = CachedPredictionWrapper(predictor, cache)
@@ -141,8 +150,8 @@ def get_endpoints():
         return jsonify({'error': 'Predictor not loaded'}), 500
     
     return jsonify({
-        'endpoints': predictor.endpoints,
-        'count': len(predictor.endpoints),
+        'endpoints': list(predictor.models.keys()),
+        'count': len(predictor.models),
         'description': 'Available toxicity prediction endpoints'
     })
 
@@ -165,37 +174,66 @@ def predict_single():
         if predictor_cached:
             result = predictor_cached.predict_single(smiles)
         else:
-            result = predictor.predict_single(smiles)
+            result = predictor.predict(smiles)
         
         if 'error' in result:
             return jsonify({'error': result['error']}), 500
         
+        # Calculate overall statistics
+        total_prob = 0
+        toxic_count = 0
+        valid_count = 0
+        
+        for model_id, model_result in result.items():
+            if 'error' not in model_result:
+                valid_count += 1
+                if 'probability' in model_result:
+                    total_prob += model_result['probability']
+                    if model_result.get('prediction', 0) == 1:
+                        toxic_count += 1
+        
+        avg_probability = total_prob / valid_count if valid_count > 0 else 0
+        overall_toxicity = "High Risk" if avg_probability > 0.7 else "Medium Risk" if avg_probability > 0.3 else "Low Risk"
+        
         # Format response for frontend compatibility
         formatted_result = {
-            'molecule': result['smiles'],
-            'smiles': result['smiles'],
-            'timestamp': result['timestamp'],
+            'molecule': smiles,
+            'smiles': smiles,
+            'timestamp': str(datetime.now()),
             'predictions': {},
-            'overall_toxicity': result['summary']['overall_assessment'],
-            'confidence': result['summary']['recommendation'],
-            'toxic_endpoints': result['summary']['toxic_endpoints'],
-            'average_probability': result['summary']['average_toxicity_probability']
+            'overall_toxicity': overall_toxicity,
+            'confidence': f"{avg_probability:.2%}",
+            'toxic_endpoints': toxic_count,
+            'average_probability': avg_probability
         }
         
         # Format predictions to match frontend structure
-        for endpoint, data in result['endpoints'].items():
-            formatted_result['predictions'][endpoint] = {
-                'probability': data['probability'],
-                'prediction': data['prediction'],
-                'confidence': data['confidence'],
-                'risk': data['prediction']
-            }
+        for model_id, model_result in result.items():
+            if 'error' not in model_result:
+                formatted_result['predictions'][model_id] = {
+                    'probability': model_result.get('probability', model_result.get('value', 0)),
+                    'prediction': model_result.get('prediction', 0),
+                    'confidence': model_result.get('probability', 1.0),
+                    'risk': model_result.get('label', 'Unknown'),
+                    'type': model_result.get('type', 'unknown')
+                }
+            else:
+                formatted_result['predictions'][model_id] = {
+                    'error': model_result['error']
+                }
+        
+        # Apply ADMET rule-based interpretation
+        admet_interpretation = interpret_admet_predictions(smiles, result, is_approved_drug=False)
+        formatted_result['admet_analysis'] = admet_interpretation
+        formatted_result['molecular_properties'] = admet_interpretation.get('properties', {})
+        formatted_result['drug_likeness'] = admet_interpretation.get('drug_likeness', {})
         
         # Generate AI analysis if Groq is available
         ai_analysis = None
         if groq_client:
             try:
-                ai_analysis = groq_client.analyze_molecule(smiles, result['endpoints'])
+                # Include ADMET interpretation in AI analysis
+                ai_analysis = groq_client.analyze_molecule(smiles, result, admet_interpretation)
                 formatted_result['ai_analysis'] = ai_analysis
             except Exception as e:
                 print(f"⚠️ AI analysis failed: {e}")
@@ -877,44 +915,44 @@ def chat_ask():
         system_prompt = """You are MedToXAi Assistant, an expert AI specialized in chemistry, toxicology, pharmaceutical sciences, and drug discovery.
 
 🧪 **CORE EXPERTISE:**
-• Molecular structures, SMILES notation, and chemical properties analysis
-• Toxicology endpoints and comprehensive safety assessment methodologies
-• Drug discovery processes, ADME properties, and pharmacokinetic modeling
-• Computational chemistry, QSAR modeling, and molecular descriptor analysis
-• Protein-drug interactions, mechanism of action, and binding affinity studies
-• Regulatory toxicology, risk assessment frameworks, and compliance guidelines
+- Molecular structures, SMILES notation, and chemical properties analysis
+- Toxicology endpoints and comprehensive safety assessment methodologies
+- Drug discovery processes, ADME properties, and pharmacokinetic modeling
+- Computational chemistry, QSAR modeling, and molecular descriptor analysis
+- Protein-drug interactions, mechanism of action, and binding affinity studies
+- Regulatory toxicology, risk assessment frameworks, and compliance guidelines
 
 🎯 **SPECIALIZED KNOWLEDGE AREAS:**
-• **Toxicity Endpoints**: NR-AR-LBD (Androgen Receptor), NR-AhR (Aryl Hydrocarbon Receptor), SR-MMP (Mitochondrial Membrane Potential), NR-ER-LBD (Estrogen Receptor), NR-AR (Androgen Receptor)
-• **ADME Properties**: Absorption kinetics, Distribution patterns, Metabolism pathways, Excretion mechanisms
-• **Safety Assessment**: Hepatotoxicity mechanisms, Cardiotoxicity indicators, Genotoxicity assays, Reproductive toxicity studies
-• **Chemical Databases**: ChEMBL compound data, PubChem molecular information, ToxCast screening results, Tox21 assay data
-• **ML Models**: Random Forest algorithms, Support Vector Machines, Neural networks for toxicity prediction, Ensemble methods
+- **Toxicity Endpoints**: NR-AR-LBD (Androgen Receptor), NR-AhR (Aryl Hydrocarbon Receptor), SR-MMP (Mitochondrial Membrane Potential), NR-ER-LBD (Estrogen Receptor), NR-AR (Androgen Receptor)
+- **ADME Properties**: Absorption kinetics, Distribution patterns, Metabolism pathways, Excretion mechanisms
+- **Safety Assessment**: Hepatotoxicity mechanisms, Cardiotoxicity indicators, Genotoxicity assays, Reproductive toxicity studies
+- **Chemical Databases**: ChEMBL compound data, PubChem molecular information, ToxCast screening results, Tox21 assay data
+- **ML Models**: Random Forest algorithms, Support Vector Machines, Neural networks for toxicity prediction, Ensemble methods
 
 RESPONSE STRUCTURE GUIDELINES:
-• Format: Use clear sections, bullet points (•), and simple formatting for better readability
-• Scientific Accuracy: Provide precise, evidence-based information with appropriate caveats
-• Explanations: Break down complex concepts into digestible parts with examples
-• Practical Application: Include real-world applications and case studies when relevant
-• Safety Notes: Always emphasize when to consult healthcare professionals or regulatory experts
-• References: Mention relevant databases, literature, or methodologies when applicable
-• NO MARKDOWN: Do not use bold, italic, headers, or code blocks - use plain text with clear structure
+- Format: Use clear sections, bullet points (-), and simple formatting for better readability
+- Scientific Accuracy: Provide precise, evidence-based information with appropriate caveats
+- Explanations: Break down complex concepts into digestible parts with examples
+- Practical Application: Include real-world applications and case studies when relevant
+- Safety Notes: Always emphasize when to consult healthcare professionals or regulatory experts
+- References: Mention relevant databases, literature, or methodologies when applicable
+- NO MARKDOWN: Do not use bold, italic, headers, or code blocks - use plain text with clear structure
 
 PLATFORM INTEGRATION:
 You are the AI brain of MedToXAi, a cutting-edge molecular toxicity prediction platform featuring:
-• 5-Endpoint Prediction System: Comprehensive toxicity assessment across key biological targets
-• SMILES Analysis Engine: Advanced chemical structure interpretation and property prediction
-• AI-Powered Insights: Machine learning-driven safety and efficacy predictions
-• Research Support: Tools for safer chemical design and drug development decisions
+- 5-Endpoint Prediction System: Comprehensive toxicity assessment across key biological targets
+- SMILES Analysis Engine: Advanced chemical structure interpretation and property prediction
+- AI-Powered Insights: Machine learning-driven safety and efficacy predictions
+- Research Support: Tools for safer chemical design and drug development decisions
 
 RESPONSE STYLE:
-• Start with a brief, direct answer to the user's question
-• Follow with detailed explanation in structured sections
-• Include practical examples or case studies when helpful
-• End with actionable insights or next steps
-• Maintain scientific rigor while being accessible and educational
-• Use appropriate technical terminology but explain complex terms
-• Use plain text formatting without markdown symbols
+- Start with a brief, direct answer to the user's question
+- Follow with detailed explanation in structured sections
+- Include practical examples or case studies when helpful
+- End with actionable insights or next steps
+- Maintain scientific rigor while being accessible and educational
+- Use appropriate technical terminology but explain complex terms
+- Use plain text formatting without markdown symbols
 
 Always be helpful, accurate, and educational while maintaining the highest standards of scientific integrity."""
 
@@ -960,26 +998,26 @@ Your Question: {user_message}
 Basic Chemistry & Toxicology Guidance:
 
 If asking about SMILES notation:
-• SMILES (Simplified Molecular Input Line Entry System) represents molecular structures as text strings
-• Example: C1=CC=CC=C1 represents benzene (hexagonal ring)
-• Each character represents atoms and bonds in a systematic way
+- SMILES (Simplified Molecular Input Line Entry System) represents molecular structures as text strings
+- Example: C1=CC=CC=C1 represents benzene (hexagonal ring)
+- Each character represents atoms and bonds in a systematic way
 
 If asking about toxicity endpoints:
-• NR-AR-LBD: Androgen Receptor Ligand Binding Domain - affects hormonal activity
-• NR-AhR: Aryl Hydrocarbon Receptor - involved in xenobiotic metabolism
-• SR-MMP: Mitochondrial Membrane Potential - indicates cellular stress
-• NR-ER-LBD: Estrogen Receptor - hormonal disruption indicator
-• NR-AR: Androgen Receptor - endocrine disruption marker
+- NR-AR-LBD: Androgen Receptor Ligand Binding Domain - affects hormonal activity
+- NR-AhR: Aryl Hydrocarbon Receptor - involved in xenobiotic metabolism
+- SR-MMP: Mitochondrial Membrane Potential - indicates cellular stress
+- NR-ER-LBD: Estrogen Receptor - hormonal disruption indicator
+- NR-AR: Androgen Receptor - endocrine disruption marker
 
 If asking about drug safety:
-• ADME properties (Absorption, Distribution, Metabolism, Excretion) are crucial
-• Hepatotoxicity often results from reactive metabolites
-• Cardiotoxicity may involve ion channel interactions
+- ADME properties (Absorption, Distribution, Metabolism, Excretion) are crucial
+- Hepatotoxicity often results from reactive metabolites
+- Cardiotoxicity may involve ion channel interactions
 
 Try These Approaches:
-• Rephrase your question more specifically
-• Ask about individual concepts rather than complex combinations
-• Use technical terms like "mechanism", "pathway", or "assessment"
+- Rephrase your question more specifically
+- Ask about individual concepts rather than complex combinations
+- Use technical terms like "mechanism", "pathway", or "assessment"
 
 Service Status: The full AI capabilities will be restored shortly. Try your question again in a moment for detailed, expert-level analysis!"""
             
@@ -1914,7 +1952,7 @@ if __name__ == '__main__':
     
     # Initialize predictor
     if initialize_services():
-        print(f"📊 Available endpoints: {len(predictor.endpoints)}")
+        print(f"📊 Available models: {len(predictor.models)}")
         print(f"🔬 Model status: ✅ Loaded")
         print("🌐 Starting server on http://localhost:5000")
         print("=" * 50)

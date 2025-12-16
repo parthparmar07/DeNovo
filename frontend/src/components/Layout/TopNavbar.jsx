@@ -60,11 +60,11 @@ const TopNavbar = ({ setSidebarOpen, pageTitle = 'Dashboard' }) => {
   };
 
   return (
-    <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-2 sm:gap-x-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm px-2 sm:px-4 shadow-soft sm:px-6 lg:px-8">
+    <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-2 sm:gap-x-4 border-b border-cyan-500/30 bg-black backdrop-blur-sm px-2 sm:px-4 shadow-soft sm:px-6 lg:px-8">
       {/* Mobile menu button */}
       <button
         type="button"
-        className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+        className="-m-2.5 p-2.5 text-cyan-400 lg:hidden"
         onClick={() => setSidebarOpen(true)}
       >
         <span className="sr-only">Open sidebar</span>
@@ -72,12 +72,12 @@ const TopNavbar = ({ setSidebarOpen, pageTitle = 'Dashboard' }) => {
       </button>
 
       {/* Separator */}
-      <div className="h-6 w-px bg-gray-900/10 lg:hidden" aria-hidden="true" />
+      <div className="h-6 w-px bg-cyan-500/20 lg:hidden" aria-hidden="true" />
 
       {/* Page title */}
       <div className="flex flex-1 gap-x-2 sm:gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex items-center">
-          <h1 className="text-base sm:text-xl font-semibold text-gray-900 truncate">{pageTitle}</h1>
+          <h1 className="text-base sm:text-xl font-semibold text-cyan-400 truncate">{pageTitle}</h1>
         </div>
         
         {/* Search - Hidden on mobile, visible on tablet+ */}
@@ -86,12 +86,12 @@ const TopNavbar = ({ setSidebarOpen, pageTitle = 'Dashboard' }) => {
             Search
           </label>
           <MagnifyingGlassIcon
-            className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3"
+            className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-500 pl-3"
             aria-hidden="true"
           />
           <input
             id="search-field"
-            className="block h-full w-full border-0 py-0 pl-10 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm bg-transparent"
+            className="block h-full w-full border-0 py-0 pl-10 pr-0 text-gray-300 placeholder:text-gray-600 focus:ring-0 sm:text-sm bg-transparent"
             placeholder="Search molecules, results, or models..."
             type="search"
             name="search"
@@ -100,23 +100,9 @@ const TopNavbar = ({ setSidebarOpen, pageTitle = 'Dashboard' }) => {
       </div>
 
       <div className="flex items-center gap-x-1 sm:gap-x-2 lg:gap-x-4">
-        {/* Dark mode toggle - Hidden on mobile */}
-        <button
-          type="button"
-          className="hidden sm:block relative rounded-full bg-white p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-50 hover:scale-110 transition-all duration-300 ease-in-out"
-          onClick={() => setDarkMode(!darkMode)}
-        >
-          <span className="sr-only">Toggle dark mode</span>
-          {darkMode ? (
-            <SunIcon className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <MoonIcon className="h-5 w-5" aria-hidden="true" />
-          )}
-        </button>
-
         {/* Notifications dropdown */}
         <Popover className="relative">
-          <Popover.Button className="relative rounded-full bg-white p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-50 hover:scale-110 transition-all duration-300 ease-in-out">
+          <Popover.Button className="relative rounded-full bg-gray-900 p-2 text-cyan-400 hover:text-cyan-300 hover:bg-gray-800 hover:scale-110 transition-all duration-300 ease-in-out">
             <span className="sr-only">View notifications</span>
             <BellIcon className="h-5 w-5" aria-hidden="true" />
             {/* Notification badge */}
@@ -171,20 +157,20 @@ const TopNavbar = ({ setSidebarOpen, pageTitle = 'Dashboard' }) => {
         </Popover>
 
         {/* Separator */}
-        <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true" />
+        <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-cyan-500/20" aria-hidden="true" />
 
         {/* Profile dropdown */}
         <Menu as="div" className="relative">
-          <Menu.Button className="flex items-center gap-x-1 sm:gap-x-2 rounded-full bg-white p-1 sm:p-1.5 text-sm leading-6 text-gray-900 hover:bg-gray-50 hover:scale-105 transition-all duration-300 ease-in-out">
+          <Menu.Button className="flex items-center gap-x-1 sm:gap-x-2 rounded-full bg-gray-900 p-1 sm:p-1.5 text-sm leading-6 text-cyan-400 hover:bg-gray-800 hover:scale-105 transition-all duration-300 ease-in-out">
             <span className="sr-only">Open user menu</span>
-            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 flex items-center justify-center">
-              <span className="text-xs font-medium text-white">GP</span>
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 flex items-center justify-center">
+              <UserCircleIcon className="h-5 w-5 text-white" />
             </div>
             <span className="hidden lg:flex lg:items-center">
-              <span className="ml-2 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
-                Gaurav Patil
+              <span className="ml-2 text-sm font-semibold leading-6 text-cyan-400" aria-hidden="true">
+                User
               </span>
-              <ChevronDownIcon className="ml-2 h-4 w-4 text-gray-400" aria-hidden="true" />
+              <ChevronDownIcon className="ml-2 h-4 w-4 text-cyan-500" aria-hidden="true" />
             </span>
           </Menu.Button>
           <Transition

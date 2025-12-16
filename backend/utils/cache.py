@@ -185,7 +185,7 @@ class CachedPredictionWrapper:
             return cached_result
         
         # Get fresh prediction
-        result = self.predictor.predict_single(smiles)
+        result = self.predictor.predict(smiles)
         
         # Store in cache
         self.cache.set(smiles, result)

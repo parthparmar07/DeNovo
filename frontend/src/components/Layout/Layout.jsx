@@ -5,6 +5,7 @@ import TopNavbar from './TopNavbar';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
 
   // Get page title based on current route
@@ -32,12 +33,17 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black">
       {/* Sidebar */}
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <Sidebar 
+        open={sidebarOpen} 
+        setOpen={setSidebarOpen}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
       
       {/* Main content */}
-      <div className="lg:pl-72">
+      <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"} style={{ transition: 'padding 300ms' }}>
         {/* Top navbar */}
         <TopNavbar 
           setSidebarOpen={setSidebarOpen} 

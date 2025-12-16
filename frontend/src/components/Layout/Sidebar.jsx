@@ -6,7 +6,9 @@ import {
   BeakerIcon, 
   DocumentDuplicateIcon,
   ChatBubbleLeftRightIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 
@@ -14,32 +16,44 @@ const navigation = [
   { name: 'Dashboard', href: '/app/dashboard', icon: HomeIcon },
   { name: 'Predictions', href: '/app/predictions', icon: BeakerIcon },
   { name: 'Batch Processing', href: '/app/batch', icon: DocumentDuplicateIcon },
-  { name: 'Chat', href: '/app/chat', icon: ChatBubbleLeftRightIcon },
+  { name: 'AI Assistant', href: '/app/chat', icon: ChatBubbleLeftRightIcon },
 ];
 
-
-
-const Sidebar = ({ open, setOpen }) => {
+const Sidebar = ({ open, setOpen, collapsed, setCollapsed }) => {
   const location = useLocation();
 
-  const SidebarContent = () => (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gradient-to-b from-primary-600 to-primary-800 px-6 pb-4">
+  const SidebarContent = ({ isDesktop = false }) => (
+    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gradient-to-b from-gray-950 via-gray-900 to-black px-6 pb-4">
       {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center">
-        <Link to="/" className="flex items-center space-x-3 hover:scale-105 transition-transform duration-300">
+      <div className="flex h-16 shrink-0 items-center justify-between">
+        <Link to="/" className={clsx(
+          "flex items-center space-x-3 hover:scale-105 transition-transform duration-300",
+          collapsed && isDesktop && "justify-center"
+        )}>
           <div className="relative">
-            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-600 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary-500/50">
               <BeakerIcon className="h-6 w-6 text-white" />
             </div>
-            <div className="absolute -top-1 -right-1 h-4 w-4 bg-success-400 rounded-full flex items-center justify-center">
-              <div className="h-2 w-2 bg-white rounded-full"></div>
+          </div>
+          {(!collapsed || !isDesktop) && (
+            <div>
+              <h1 className="text-lg font-bold text-white">MedTox Platform</h1>
+              <p className="text-xs text-gray-400">ADMET Prediction</p>
             </div>
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">MedToXAi</h1>
-            <p className="text-xs text-primary-200">Molecular Predictions</p>
-          </div>
+          )}
         </Link>
+        {isDesktop && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            {collapsed ? (
+              <ChevronRightIcon className="h-5 w-5 text-gray-400" />
+            ) : (
+              <ChevronLeftIcon className="h-5 w-5 text-gray-400" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -51,22 +65,26 @@ const Sidebar = ({ open, setOpen }) => {
                 <li key={item.name}>
                   <Link
                     to={item.href}
+                    title={collapsed && isDesktop ? item.name : ''}
                     className={clsx(
                       location.pathname === item.href
-                        ? 'bg-white/10 text-white shadow-soft transform scale-105'
-                        : 'text-primary-200 hover:text-white hover:bg-white/10 hover:scale-105 hover:shadow-md',
-                      'group flex gap-x-3 rounded-xl p-3 text-sm leading-6 font-medium transition-all duration-300 ease-in-out cursor-pointer'
+                        ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white shadow-lg shadow-primary-500/30'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5',
+                      'group flex gap-x-3 rounded-xl p-3 text-sm leading-6 font-medium transition-all duration-300 ease-in-out cursor-pointer',
+                      collapsed && isDesktop && 'justify-center'
                     )}
                   >
                     <item.icon
                       className={clsx(
-                        location.pathname === item.href ? 'text-white' : 'text-primary-300 group-hover:text-white group-hover:scale-110',
+                        location.pathname === item.href ? 'text-white' : 'text-gray-400 group-hover:text-white',
                         'h-5 w-5 shrink-0 transition-all duration-300'
                       )}
                       aria-hidden="true"
                     />
-                    {item.name}
-                    {location.pathname === item.href && (
+                    {(!collapsed || !isDesktop) && (
+                      <span className="flex-1">{item.name}</span>
+                    )}
+                    {location.pathname === item.href && (!collapsed || !isDesktop) && (
                       <div className="ml-auto h-2 w-2 rounded-full bg-white"></div>
                     )}
                   </Link>
@@ -74,23 +92,23 @@ const Sidebar = ({ open, setOpen }) => {
               ))}
             </ul>
           </li>
-
-
         </ul>
       </nav>
 
-      {/* User info */}
-      <div className="mt-6 p-4 rounded-xl bg-white/10 backdrop-blur-sm">
-        <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-r from-primary-400 to-primary-600 flex items-center justify-center">
-            <span className="text-sm font-medium text-white">GP</span>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-white">Gaurav Patil</p>
-            <p className="text-xs text-primary-200">Researcher</p>
+      {/* Platform info */}
+      {(!collapsed || !isDesktop) && (
+        <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-primary-500/10 to-accent-500/10 backdrop-blur-sm border border-primary-500/20">
+          <div className="flex items-center">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-600 flex items-center justify-center shadow-lg shadow-primary-500/30">
+              <BeakerIcon className="h-5 w-5 text-white" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-white">5 Models Active</p>
+              <p className="text-xs text-gray-400">Production Ready</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 
@@ -142,7 +160,7 @@ const Sidebar = ({ open, setOpen }) => {
                     </button>
                   </div>
                 </Transition.Child>
-                <SidebarContent />
+                <SidebarContent isDesktop={false} />
               </Dialog.Panel>
             </Transition.Child>
           </div>
@@ -150,8 +168,11 @@ const Sidebar = ({ open, setOpen }) => {
       </Transition.Root>
 
       {/* Static sidebar for desktop */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-        <SidebarContent />
+      <div className={clsx(
+        "hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300",
+        collapsed ? "lg:w-20" : "lg:w-72"
+      )}>
+        <SidebarContent isDesktop={true} />
       </div>
     </>
   );
